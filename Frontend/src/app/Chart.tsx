@@ -4,6 +4,7 @@ import { Chart as ChartJS, LinearScale, LineController, LineElement, PointElemen
 
 interface IChart {
     data: any;
+    className: string;
     onDataChange: (chart: ChartJS) => void;
 }
 
@@ -55,9 +56,9 @@ export class Chart extends MithrilTsxComponent<IChart> {
         }
     }
 
-    view() {
+    view({ attrs: { className } }: { attrs: IChart }) {
         return (
-            <div class="w-[800px] h-[400px]"><canvas id="chart"></canvas></div>
+            <div class={className}><canvas id="chart"></canvas></div>
         );
     }
 }

@@ -1,5 +1,6 @@
 using Backend.BackgroundServices;
 using Backend.Hubs;
+using Backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHostedService<DataBroadcastService>();
+builder.Services.AddSingleton<DashboardService>();
 
 var app = builder.Build();
 
