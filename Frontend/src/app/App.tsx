@@ -92,8 +92,6 @@ export class App extends MithrilTsxComponent<{}> {
 
         this.connection.on("ReceiveMessage", (data: Message[]) => {
             this.messages = data;
-            console.log(this.messages);
-            console.log(this.connectionId);
             m.redraw();
         });
 
