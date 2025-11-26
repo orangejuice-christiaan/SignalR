@@ -12,11 +12,14 @@ namespace Backend.Hubs
             _dashboardService = dashboardService;
         }
 
-        public override Task OnConnectedAsync()
+        public override async Task<Task> OnConnectedAsync()
         {
             var connectionId = Context.ConnectionId;
 
             _dashboardService.AddClient(connectionId);
+
+            await Clients.Caller.SendAsync("OnConnected", connectionId);
+            await Clients.All.SendAsync("ReceiveMessage", _dashboardService.GetMessages());
 
             return base.OnConnectedAsync();
         }
@@ -41,9 +44,17 @@ namespace Backend.Hubs
             await Clients.All.SendAsync("UpdateUsers", _dashboardService.GetClients());
         }
 
-        public async Task SendMessage(Message message)
+        public async Task SendMessage(string message)
         {
-            await Clients.All.SendAsync("ReceiveMessage", message);
+            var connectionId = Context.ConnectionId;
+            var user = _dashboardService.GetClientById(connectionId);
+
+            if (user == null || string.IsNullOrEmpty(user.Username))
+                return;
+
+            _dashboardService.AddMessage(new Message { Data = message, Sender = user.Username, SenderId = user.ConnectionId });
+
+            await Clients.All.SendAsync("ReceiveMessage", _dashboardService.GetMessages());
         }
     }
 }

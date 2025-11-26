@@ -19,7 +19,8 @@
 
             clients.Add(new Client
             {
-                ConnectionId = connectionId
+                ConnectionId = connectionId,
+                JoinedAt = DateTime.UtcNow
             });
         }
 
@@ -41,18 +42,22 @@
             }
         }
 
-        public IEnumerable<Client> GetClients() => clients;
+        public IEnumerable<Client> GetClients() => clients.OrderBy(x => x.JoinedAt);
+        public Client? GetClientById(string connectionId) => clients.FirstOrDefault(c => c.ConnectionId == connectionId);
     }
 
     public class Message
     {
         public required string Data { get; set; }
         public required string Sender { get; set; }
+
+        public required string SenderId { get; set; }
     }
 
     public class Client
     {
         public required string ConnectionId { get; set; }
         public string? Username { get; set; }
+        public DateTime JoinedAt { get; set; }
     }
 }

@@ -3,16 +3,30 @@ import m from "mithril";
 import { MithrilTsxComponent } from "mithril-tsx-component";
 import { Chart } from "./Chart";
 
-const BASE_API_URL = "https://localhost:7124";
+const BASE_API_URL = "https://1575b4063139.ngrok-free.app";
 const USERNAME_SESSION_KEY = "signalr-dashboard-username";
+
+interface User {
+    connectionId: string;
+    username: string;
+}
+
+interface Message {
+    sender: string;
+    senderId: string;
+    data: string
+}
 
 export class App extends MithrilTsxComponent<{}> {
     username: string | undefined;
+    connectionId: string | undefined;
     data: any[] = [];
     pendingUsername = "";
     isUsernameDialogOpen = true;
     connection: HubConnection | undefined;
-    users: { connectionId: string, username: string }[] = [];
+    users: User[] = [];
+    messages: Message[] = [];
+    pendingMessage = "";
 
     private closeUsernameDialog() {
         if (!this.pendingUsername.trim()) {
@@ -29,6 +43,17 @@ export class App extends MithrilTsxComponent<{}> {
         this.connection?.invoke("SetUsername", this.username);
         this.isUsernameDialogOpen = false;
         this.pendingUsername = "";
+        m.redraw();
+    }
+
+    private sendMessage() {
+        if (!this.pendingMessage.trim()) {
+            return;
+        }
+
+        const sanitizedMessage = this.pendingMessage.trim();
+        this.connection?.invoke("SendMessage", sanitizedMessage);
+        this.pendingMessage = "";
         m.redraw();
     }
 
@@ -50,13 +75,25 @@ export class App extends MithrilTsxComponent<{}> {
             .configureLogging(LogLevel.Information)
             .build();
 
+        this.connection.on("OnConnected", (connectionId: string) => {
+            this.connectionId = connectionId;
+            m.redraw();
+        });
+
         this.connection.on("ReceiveData", (data: any) => {
             this.data = data;
             m.redraw();
         });
 
-        this.connection.on("UpdateUsers", (data: { connectionId: string, username: string }[]) => {
+        this.connection.on("UpdateUsers", (data: User[]) => {
             this.users = data;
+            m.redraw();
+        });
+
+        this.connection.on("ReceiveMessage", (data: Message[]) => {
+            this.messages = data;
+            console.log(this.messages);
+            console.log(this.connectionId);
             m.redraw();
         });
 
@@ -78,9 +115,40 @@ export class App extends MithrilTsxComponent<{}> {
                     <div class="p-4 rounded-xl border border-slate-200 w-full h-full">
                         <Chart className="w-full h-full aspect-video" data={this.data} />
                     </div>
-                    <div class="flex flex-col gap-4 p-4 rounded-xl border border-slate-200 w-full h-full">
+                    <div class="flex flex-col gap-4 p-4 rounded-xl border border-slate-200 w-full h-full row-span-2">
                         <h1 class="text-2xl font-semibold text-slate-700">Messages</h1>
                         <div class="h-px bg-slate-200 w-full"></div>
+                        <div class="flex flex-col gap-2 h-full overflow-y-auto grow">
+                            {this.messages.map((message) => (
+                                <div class="flex items-center gap-2">
+                                    <span class={`text-lg font-medium ${message.sender === this.username ? "text-indigo-600 ml-auto" : "text-slate-500"}`}>
+                                        {message.sender}: {message.data}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div class="flex items-center gap-2 justify-end">
+                            <input
+                                type="text"
+                                class="border border-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
+                                placeholder="your message"
+                                value={this.pendingMessage}
+                                oninput={(event: InputEvent) => {
+                                    const target = event.target as HTMLInputElement;
+                                    this.pendingMessage = target.value;
+                                }}
+                                onkeydown={(event: KeyboardEvent) => {
+                                    if (event.key === "Enter" && this.pendingMessage.trim())
+                                        this.sendMessage();
+                                }}
+                            />
+                            <button
+                                class="rounded-lg px-4 py-2 text-white font-medium transition bg-indigo-600 hover:bg-indigo-500 w-36"
+                                onclick={() => this.sendMessage()}
+                            >
+                                Send
+                            </button>
+                        </div>
                     </div>
                     <div class="flex flex-col gap-4 p-4 rounded-xl border border-slate-200 w-full h-full">
                         <h1 class="text-2xl font-semibold text-slate-700">Users</h1>
@@ -105,11 +173,15 @@ export class App extends MithrilTsxComponent<{}> {
                             <input
                                 type="text"
                                 class="border border-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="e.g. data-nerd-42"
+                                placeholder="your username"
                                 value={this.pendingUsername}
                                 oninput={(event: InputEvent) => {
                                     const target = event.target as HTMLInputElement;
                                     this.pendingUsername = target.value;
+                                }}
+                                onkeydown={(event: KeyboardEvent) => {
+                                    if (event.key === "Enter" && this.pendingUsername.trim())
+                                        this.closeUsernameDialog();
                                 }}
                             />
                             <button
